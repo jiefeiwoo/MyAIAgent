@@ -495,6 +495,20 @@
             doubao: ''
         };
 
+        // 聊天历史（用于上下文）
+        // 使用 OpenAI 兼容的 { role, content } 结构
+        const chatHistory = [];
+
+        // 获取最近 N 条消息，并可选添加系统提示
+        function getRecentMessages(limit = 20, systemPrompt = null) {
+            const startIndex = Math.max(chatHistory.length - limit, 0);
+            const recent = chatHistory.slice(startIndex);
+            if (systemPrompt) {
+                return [{ role: 'system', content: systemPrompt }, ...recent];
+            }
+            return recent;
+        }
+
         // 设置初始消息时间
         function setInitialTimes() {
             const now = new Date();
@@ -571,7 +585,7 @@
         // 已移除模拟AI模块
 
         // 调用真实API
-        async function callRealAPI(userMessage, assistantId) {
+        async function callRealAPI(messages, assistantId) {
             // 这里需要根据实际的API文档来实现
             // 以下是示例代码，你需要根据实际情况修改
             
@@ -582,21 +596,21 @@
                             throw new Error('DeepSeek API密钥未配置');
                         }
                         // 调用DeepSeek API
-                        return await callDeepSeekAPI(userMessage, apiKeys.deepseek);
+                        return await callDeepSeekAPI(messages, apiKeys.deepseek);
                         
                     case 'tongyi':
                         if (!apiKeys.tongyi) {
                             throw new Error('通义千问API密钥未配置');
                         }
                         // 调用通义千问API
-                        return await callTongyiAPI(userMessage, apiKeys.tongyi);
+                        return await callTongyiAPI(messages, apiKeys.tongyi);
                         
                     case 'doubao':
                         if (!apiKeys.doubao) {
                             throw new Error('豆包API密钥未配置');
                         }
                         // 调用豆包API
-                        return await calldoubaoAPI(userMessage, apiKeys.doubao);
+                        return await calldoubaoAPI(messages, apiKeys.doubao);
                         
                     default:
                         throw new Error('未知的AI助手');
@@ -608,7 +622,7 @@
         }
 
         // 示例API调用函数（需要根据实际API文档修改）
-        async function callDeepSeekAPI(message, apiKey) {
+        async function callDeepSeekAPI(messages, apiKey) {
             // 这里需要根据DeepSeek的实际API文档来实现
             // 示例：
             const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
@@ -619,7 +633,7 @@
                 },
                 body: JSON.stringify({
                     model: 'deepseek-chat',
-                    messages: [{ role: 'user', content: message }]
+                    messages: messages
                 })
             });
             
@@ -631,7 +645,7 @@
             return data.choices[0].message.content;
         }
 
-        async function callTongyiAPI(message, apiKey) {
+        async function callTongyiAPI(messages, apiKey) {
             // DashScope 兼容模式（OpenAI 风格）
             const response = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
                 method: 'POST',
@@ -641,7 +655,7 @@
                 },
                 body: JSON.stringify({
                     model: 'qwen-plus',
-                    messages: [{ role: 'user', content: message }]
+                    messages: messages
                 })
             });
             
@@ -656,7 +670,7 @@
             throw new Error('API响应格式不正确');
         }
 
-        async function calldoubaoAPI(message, apiKey) {
+        async function calldoubaoAPI(messages, apiKey) {
             // 豆包API调用 - 尝试多个可能的模型名称
             const possibleModels = [
                 "doubao-seed-1-6-250615",
@@ -674,7 +688,7 @@
                         },
                         body: JSON.stringify({
                             model: model,
-                            messages: [{ role: 'user', content: message }],
+                            messages: messages,
                             max_tokens: 1000,
                             temperature: 0.7
                         })
@@ -772,30 +786,31 @@
             
             // 添加用户消息
             addMessage(message, 'user');
+            // 写入历史作为上下文
+            chatHistory.push({ role: 'user', content: message });
             input.value = '';
             
             // 显示加载状态
             showLoading();
             
             try {
-                const responses = await Promise.all(
-                    assistants.map(async (assistant) => {
-                        try {
-                            const response = await callRealAPI(message, assistant.id);
-                            return { assistant, response, success: true };
-                        } catch (error) {
-                            return { assistant, response: error.message, success: false };
-                        }
-                    })
-                );
-                
-                hideLoading();
-                
-                responses.forEach(({ assistant, response, success }) => {
-                    if (success) {
+                let remaining = assistants.length;
+                assistants.forEach(async (assistant) => {
+                    try {
+                        // 可选系统提示，可按需定制不同助手身份
+                        const systemPrompt = null;
+                        const messagesWithContext = getRecentMessages(20, systemPrompt);
+                        const response = await callRealAPI(messagesWithContext, assistant.id);
                         addMessage(response, 'assistant', assistant.id);
-                    } else {
-                        addMessage(`错误: ${response}`, 'assistant', assistant.id);
+                        // 将助手回复写入历史
+                        chatHistory.push({ role: 'assistant', content: response });
+                    } catch (error) {
+                        addMessage(`错误: ${error.message}`, 'assistant', assistant.id);
+                    } finally {
+                        remaining -= 1;
+                        if (remaining === 0) {
+                            hideLoading();
+                        }
                     }
                 });
             } catch (error) {
