@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI助手群聊 - 真实API版本</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+                sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .api-config {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        .api-config h3 {
+            color: #374151;
+            margin-bottom: 15px;
+        }
+
+        .api-input-group {
+            margin-bottom: 15px;
+        }
+
+        .api-input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .api-input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .api-input-group input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .toggle-button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        .toggle-button:hover {
+            background: #2563eb;
+        }
+
+        .toggle-button.active {
+            background: #10b981;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 3fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .assistant-list {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+
+        .assistant-list h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 15px;
+        }
+
+        .assistant-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            transition: border-color 0.2s;
+        }
+
+        .assistant-item:hover {
+            border-color: #d1d5db;
+        }
+
+        .assistant-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: white;
+            font-weight: 600;
+        }
+
+        .assistant-info h4 {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 4px;
+        }
+
+        .assistant-info p {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .status-dot.online {
+            background: #10b981;
+        }
+
+        .status-dot.offline {
+            background: #ef4444;
+        }
+
+        .chat-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            height: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .chat-header h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 4px;
+        }
+
+        .chat-header p {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            max-width: 300px;
+            padding: 12px 16px;
+            border-radius: 18px;
+            font-size: 0.875rem;
+            line-height: 1.4;
+        }
+
+        .message.user .message-content {
+            background: #3b82f6;
+            color: white;
+            border-bottom-right-radius: 6px;
+        }
+
+        .message.assistant .message-content {
+            background: white;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+            border-bottom-left-radius: 6px;
+        }
+
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            color: white;
+            font-weight: 600;
+        }
+
+        .message-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .message-name {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #6b7280;
+        }
+
+        .message-time {
+            font-size: 0.75rem;
+            color: #9ca3af;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            background: #3b82f6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .loading-dot {
+            width: 8px;
+            height: 8px;
+            background: #9ca3af;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .loading-dot:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        .chat-input {
+            padding: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .input-form {
+            display: flex;
+            gap: 12px;
+        }
+
+        .input-field {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-field:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .send-button {
+            padding: 12px 16px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .send-button:hover {
+            background: #2563eb;
+        }
+
+        .send-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .send-icon {
+            width: 16px;
+            height: 16px;
+        }
+
+        .error-message {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI助手群聊 - 真实API版本</h1>
+            <p>配置真实的AI API密钥，体验真实的AI对话</p>
+        </div>
+
+        <!-- API配置区域 -->
+        <div class="api-config">
+            <h3>🔑 API配置</h3>
+            <div class="api-input-group">
+                <label for="deepseekApiKey">DeepSeek API Key:</label>
+                <input type="password" id="deepseekApiKey" placeholder="输入你的DeepSeek API密钥">
+            </div>
+            <div class="api-input-group">
+                <label for="tongyiApiKey">通义千问 API Key:</label>
+                <input type="password" id="tongyiApiKey" placeholder="输入你的通义千问API密钥">
+            </div>
+            <div class="api-input-group">
+                <label for="doubaoApiKey">豆包 API Key:</label>
+                <input type="password" id="doubaoApiKey" placeholder="输入你的豆包API密钥">
+            </div>
+            
+            <!-- API-only 模式，已移除模拟/真实切换 -->
+            
+            <div id="errorMessage" class="error-message" style="display: none;"></div>
+        </div>
+
+        <div class="main-content">
+            <div class="assistant-list">
+                <h3>AI助手群组</h3>
+                <div class="assistant-item">
+                    <div class="assistant-avatar" style="background-color: #3B82F6;">🤖</div>
+                    <div class="assistant-info">
+                        <h4>DeepSeek</h4>
+                        <p>强大的AI助手，擅长代码生成和问题解答</p>
+                    </div>
+                    <div class="status-dot" id="deepseekStatus"></div>
+                </div>
+                <div class="assistant-item">
+                    <div class="assistant-avatar" style="background-color: #10B981;">🧠</div>
+                    <div class="assistant-info">
+                        <h4>通义千问</h4>
+                        <p>阿里云智能助手，知识渊博，回答准确</p>
+                    </div>
+                    <div class="status-dot" id="tongyiStatus"></div>
+                </div>
+                        <div class="assistant-item">
+            <div class="assistant-avatar" style="background-color: #FF6B35;">🍜</div>
+            <div class="assistant-info">
+                <h4>豆包</h4>
+                <p>字节跳动的AI助手，知识丰富，回答准确</p>
+            </div>
+            <div class="status-dot" id="doubaoStatus"></div>
+        </div>
+            </div>
+
+            <div class="chat-container">
+                <div class="chat-header">
+                    <h2>AI助手群聊</h2>
+                    <p id="onlineCount">3 个AI助手在线</p>
+                </div>
+
+                <div class="messages-container" id="messagesContainer">
+                    <div class="message assistant">
+                        <div class="message-avatar" style="background-color: #3B82F6;">🤖</div>
+                        <div class="message-content">
+                            <div class="message-info">
+                                <span class="message-name">DeepSeek</span>
+                                <span class="message-time" id="time1"></span>
+                            </div>
+                            <p>欢迎来到AI助手群聊！我是DeepSeek，很高兴为你提供帮助！</p>
+                        </div>
+                    </div>
+                    <div class="message assistant">
+                        <div class="message-avatar" style="background-color: #10B981;">🧠</div>
+                        <div class="message-content">
+                            <div class="message-info">
+                                <span class="message-name">通义千问</span>
+                                <span class="message-time" id="time2"></span>
+                            </div>
+                            <p>你好！我是通义千问，来自阿里云。我可以帮助你解答各种问题！</p>
+                        </div>
+                    </div>
+                    <div class="message assistant">
+                        <div class="message-avatar" style="background-color: #FF6B35;">🍜</div>
+                        <div class="message-content">
+                            <div class="message-info">
+                                <span class="message-name">豆包</span>
+                                <span class="message-time" id="time3"></span>
+                            </div>
+                            <p>你好！我是豆包，来自字节跳动。我知识丰富，可以帮你解答各种问题！</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-input">
+                    <form class="input-form" id="chatForm">
+                        <input 
+                            type="text" 
+                            class="input-field" 
+                            id="messageInput" 
+                            placeholder="输入你的问题..."
+                            required
+                        >
+                        <button type="submit" class="send-button" id="sendButton">
+                            <svg class="send-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                            </svg>
+                            发送
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量（API-only 模式）
+        let apiKeys = {
+            deepseek: '',
+            tongyi: '',
+            doubao: ''
+        };
+
+        // 设置初始消息时间
+        function setInitialTimes() {
+            const now = new Date();
+            const time1 = document.getElementById('time1');
+            const time2 = document.getElementById('time2');
+            const time3 = document.getElementById('time3');
+            
+            time1.textContent = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            time2.textContent = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            time3.textContent = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        // 已移除模式切换（固定为真实API模式）
+
+        // 更新状态显示
+        function updateStatus() {
+            const deepseekStatus = document.getElementById('deepseekStatus');
+            const tongyiStatus = document.getElementById('tongyiStatus');
+            const doubaoStatus = document.getElementById('doubaoStatus');
+            
+            deepseekStatus.className = 'status-dot ' + (apiKeys.deepseek ? 'online' : 'offline');
+            tongyiStatus.className = 'status-dot ' + (apiKeys.tongyi ? 'online' : 'offline');
+            doubaoStatus.className = 'status-dot ' + (apiKeys.doubao ? 'online' : 'offline');
+            
+            // 更新在线数量
+            const onlineCount = document.getElementById('onlineCount');
+            const onlineAssistants = [apiKeys.deepseek, apiKeys.tongyi, apiKeys.doubao].filter(key => key).length;
+            onlineCount.textContent = `${onlineAssistants} 个AI助手在线`;
+        }
+
+        // 保存API密钥
+        function saveApiKeys() {
+            apiKeys.deepseek = document.getElementById('deepseekApiKey').value;
+            apiKeys.tongyi = document.getElementById('tongyiApiKey').value;
+            apiKeys.doubao = document.getElementById('doubaoApiKey').value;
+            
+            // 保存到本地存储
+            localStorage.setItem('aiChatApiKeys', JSON.stringify(apiKeys));
+            
+            updateStatus();
+        }
+
+        // 加载保存的配置
+        function loadSavedConfig() {
+            const savedKeys = localStorage.getItem('aiChatApiKeys');
+            
+            if (savedKeys) {
+                apiKeys = JSON.parse(savedKeys);
+                document.getElementById('deepseekApiKey').value = apiKeys.deepseek;
+                document.getElementById('tongyiApiKey').value = apiKeys.tongyi;
+                document.getElementById('doubaoApiKey').value = apiKeys.doubao;
+            }
+            
+            updateStatus();
+        }
+
+        // 显示错误信息
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // AI助手配置（API-only）
+        const assistants = [
+            { id: 'deepseek', name: 'DeepSeek', avatar: '🤖', color: '#3B82F6' },
+            { id: 'tongyi', name: '通义千问', avatar: '🧠', color: '#10B981' },
+            { id: 'doubao', name: '豆包', avatar: '🍜', color: '#FF6B35' }
+        ];
+
+        // 已移除模拟AI模块
+
+        // 调用真实API
+        async function callRealAPI(userMessage, assistantId) {
+            // 这里需要根据实际的API文档来实现
+            // 以下是示例代码，你需要根据实际情况修改
+            
+            try {
+                switch(assistantId) {
+                    case 'deepseek':
+                        if (!apiKeys.deepseek) {
+                            throw new Error('DeepSeek API密钥未配置');
+                        }
+                        // 调用DeepSeek API
+                        return await callDeepSeekAPI(userMessage, apiKeys.deepseek);
+                        
+                    case 'tongyi':
+                        if (!apiKeys.tongyi) {
+                            throw new Error('通义千问API密钥未配置');
+                        }
+                        // 调用通义千问API
+                        return await callTongyiAPI(userMessage, apiKeys.tongyi);
+                        
+                    case 'doubao':
+                        if (!apiKeys.doubao) {
+                            throw new Error('豆包API密钥未配置');
+                        }
+                        // 调用豆包API
+                        return await calldoubaoAPI(userMessage, apiKeys.doubao);
+                        
+                    default:
+                        throw new Error('未知的AI助手');
+                }
+            } catch (error) {
+                console.error(`调用${assistantId} API失败:`, error);
+                return `抱歉，调用${assistantId} API时出现错误: ${error.message}`;
+            }
+        }
+
+        // 示例API调用函数（需要根据实际API文档修改）
+        async function callDeepSeekAPI(message, apiKey) {
+            // 这里需要根据DeepSeek的实际API文档来实现
+            // 示例：
+            const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'deepseek-chat',
+                    messages: [{ role: 'user', content: message }]
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`API调用失败: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            return data.choices[0].message.content;
+        }
+
+        async function callTongyiAPI(message, apiKey) {
+            // DashScope 兼容模式（OpenAI 风格）
+            const response = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'qwen-plus',
+                    messages: [{ role: 'user', content: message }]
+                })
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`API调用失败: ${response.status} - ${errorText}`);
+            }
+            
+            const data = await response.json();
+            const content = data?.choices?.[0]?.message?.content;
+            if (content) return content;
+            throw new Error('API响应格式不正确');
+        }
+
+        async function calldoubaoAPI(message, apiKey) {
+            // 豆包API调用 - 尝试多个可能的模型名称
+            const possibleModels = [
+                "doubao-seed-1-6-250615",
+            ];
+            
+            for (const model of possibleModels) {
+                try {
+                    console.log(`尝试豆包模型: ${model}`);
+                    
+                    const response = await fetch('https://ark.cn-beijing.volces.com/api/v3/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${apiKey}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            model: model,
+                            messages: [{ role: 'user', content: message }],
+                            max_tokens: 1000,
+                            temperature: 0.7
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.log(`模型 ${model} 失败: ${response.status} - ${errorText}`);
+                        continue; // 尝试下一个模型
+                    }
+                    
+                    const data = await response.json();
+                    console.log(`模型 ${model} 成功!`);
+                    
+                    // 根据豆包API的响应格式解析
+                    if (data.choices && data.choices[0] && data.choices[0].message) {
+                        return data.choices[0].message.content;
+                    } else if (data.output && data.output.text) {
+                        return data.output.text;
+                    } else {
+                        throw new Error('API响应格式不正确');
+                    }
+                } catch (error) {
+                    console.log(`模型 ${model} 出错:`, error.message);
+                    continue; // 尝试下一个模型
+                }
+            }
+            
+            // 所有模型都失败了
+            throw new Error('所有豆包模型都无法访问，请检查API密钥和权限');
+        }
+
+        // 添加消息到聊天界面
+        function addMessage(content, sender, assistantId = null) {
+            const messagesContainer = document.getElementById('messagesContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            
+            if (sender === 'user') {
+                messageDiv.innerHTML = `
+                    <div class="message-content">
+                        <p>${content}</p>
+                    </div>
+                    <div class="user-avatar">我</div>
+                `;
+            } else {
+                const assistant = assistants.find(a => a.id === assistantId);
+                messageDiv.innerHTML = `
+                    <div class="message-avatar" style="background-color: ${assistant.color};">${assistant.avatar}</div>
+                    <div class="message-content">
+                        <div class="message-info">
+                            <span class="message-name">${assistant.name}</span>
+                            <span class="message-time">${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        <p>${content}</p>
+                    </div>
+                `;
+            }
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // 显示加载状态
+        function showLoading() {
+            const messagesContainer = document.getElementById('messagesContainer');
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'loading';
+            loadingDiv.id = 'loading';
+            loadingDiv.innerHTML = `
+                <div class="loading-dot"></div>
+                <div class="loading-dot"></div>
+                <div class="loading-dot"></div>
+            `;
+            messagesContainer.appendChild(loadingDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // 隐藏加载状态
+        function hideLoading() {
+            const loading = document.getElementById('loading');
+            if (loading) {
+                loading.remove();
+            }
+        }
+
+        // 处理表单提交
+        document.getElementById('chatForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // 添加用户消息
+            addMessage(message, 'user');
+            input.value = '';
+            
+            // 显示加载状态
+            showLoading();
+            
+            try {
+                const responses = await Promise.all(
+                    assistants.map(async (assistant) => {
+                        try {
+                            const response = await callRealAPI(message, assistant.id);
+                            return { assistant, response, success: true };
+                        } catch (error) {
+                            return { assistant, response: error.message, success: false };
+                        }
+                    })
+                );
+                
+                hideLoading();
+                
+                responses.forEach(({ assistant, response, success }) => {
+                    if (success) {
+                        addMessage(response, 'assistant', assistant.id);
+                    } else {
+                        addMessage(`错误: ${response}`, 'assistant', assistant.id);
+                    }
+                });
+            } catch (error) {
+                hideLoading();
+                showError(`发送消息失败: ${error.message}`);
+            }
+        });
+
+        // 监听API密钥输入变化
+        document.getElementById('deepseekApiKey').addEventListener('input', saveApiKeys);
+        document.getElementById('tongyiApiKey').addEventListener('input', saveApiKeys);
+        document.getElementById('doubaoApiKey').addEventListener('input', saveApiKeys);
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            setInitialTimes();
+            loadSavedConfig();
+        });
+    </script>
+</body>
+</html> 
