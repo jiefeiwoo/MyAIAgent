@@ -227,6 +227,8 @@
             border-radius: 18px;
             font-size: 0.875rem;
             line-height: 1.4;
+            white-space: pre-wrap; /* 保留换行 */
+            word-break: break-word; /* 长词换行 */
         }
 
         .message.user .message-content {
@@ -392,6 +394,9 @@
                 <label for="doubaoApiKey">豆包 API Key:</label>
                 <input type="password" id="doubaoApiKey" placeholder="输入你的豆包API密钥">
             </div>
+            <button id="defaultKeyToggle" class="toggle-button" type="button">使用默认Key模式：关闭</button>
+            <button id="plainTextToggle" class="toggle-button active" type="button">纯文本显示：开启</button>
+            <button id="conciseModeToggle" class="toggle-button" type="button">简洁模式：关闭</button>
             
             <!-- API-only 模式，已移除模拟/真实切换 -->
             
@@ -495,6 +500,27 @@
             doubao: ''
         };
 
+        // 默认Key模式（用于演示/快速体验）
+        let useDefaultKeys = false;
+        const defaultApiKeys = {
+            deepseek: 'sk-11a35677deac466c9870cc2f378b7a8d',
+            tongyi: 'sk-25589eb8818943cabe6d1356da901cd4',
+            doubao: '0d76b879-92cf-4964-ba29-380e452e9908'
+        };
+
+        // 简洁模式开关，默认关闭
+        let useConciseMode = false;
+
+        // 三个官网 API 地址（集中管理）
+        const apiEndpoints = {
+            deepseek: 'https://api.deepseek.com/v1/chat/completions',
+            tongyi: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+            doubao: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions'
+        };
+
+        // 纯文本显示（微信聊天风格）开关，默认开启
+        let usePlainText = true;
+
         // 聊天历史（用于上下文）
         // 使用 OpenAI 兼容的 { role, content } 结构
         const chatHistory = [];
@@ -503,8 +529,14 @@
         function getRecentMessages(limit = 20, systemPrompt = null) {
             const startIndex = Math.max(chatHistory.length - limit, 0);
             const recent = chatHistory.slice(startIndex);
-            if (systemPrompt) {
-                return [{ role: 'system', content: systemPrompt }, ...recent];
+            // 简洁模式下的系统提示
+            let finalSystemPrompt = systemPrompt;
+            if (useConciseMode) {
+                const concisePrompt = "你是一个友好的朋友，请用简洁的语言回复，每次只回复1-2句话，保持对话的自然流畅。";
+                finalSystemPrompt = finalSystemPrompt ? `${finalSystemPrompt}\n\n${concisePrompt}` : concisePrompt;
+            }
+            if (finalSystemPrompt) {
+                return [{ role: 'system', content: finalSystemPrompt }, ...recent];
             }
             return recent;
         }
@@ -529,14 +561,24 @@
             const tongyiStatus = document.getElementById('tongyiStatus');
             const doubaoStatus = document.getElementById('doubaoStatus');
             
-            deepseekStatus.className = 'status-dot ' + (apiKeys.deepseek ? 'online' : 'offline');
-            tongyiStatus.className = 'status-dot ' + (apiKeys.tongyi ? 'online' : 'offline');
-            doubaoStatus.className = 'status-dot ' + (apiKeys.doubao ? 'online' : 'offline');
+            const effectiveKeys = getEffectiveKeys();
+            deepseekStatus.className = 'status-dot ' + (effectiveKeys.deepseek ? 'online' : 'offline');
+            tongyiStatus.className = 'status-dot ' + (effectiveKeys.tongyi ? 'online' : 'offline');
+            doubaoStatus.className = 'status-dot ' + (effectiveKeys.doubao ? 'online' : 'offline');
             
             // 更新在线数量
             const onlineCount = document.getElementById('onlineCount');
-            const onlineAssistants = [apiKeys.deepseek, apiKeys.tongyi, apiKeys.doubao].filter(key => key).length;
+            const onlineAssistants = Object.values(effectiveKeys).filter(key => key).length;
             onlineCount.textContent = `${onlineAssistants} 个AI助手在线`;
+        }
+
+        // 获取有效Key：优先用户输入，其次默认Key
+        function getEffectiveKeys() {
+            return {
+                deepseek: apiKeys.deepseek || defaultApiKeys.deepseek,
+                tongyi: apiKeys.tongyi || defaultApiKeys.tongyi,
+                doubao: apiKeys.doubao || defaultApiKeys.doubao
+            };
         }
 
         // 保存API密钥
@@ -561,8 +603,46 @@
                 document.getElementById('tongyiApiKey').value = apiKeys.tongyi;
                 document.getElementById('doubaoApiKey').value = apiKeys.doubao;
             }
+            const savedUseDefault = localStorage.getItem('aiChatUseDefaultKeys');
+            if (savedUseDefault) {
+                useDefaultKeys = savedUseDefault === 'true';
+            }
+            const toggleBtn = document.getElementById('defaultKeyToggle');
+            if (useDefaultKeys) {
+                toggleBtn.classList.add('active');
+                toggleBtn.textContent = '使用默认Key模式：开启';
+            } else {
+                toggleBtn.classList.remove('active');
+                toggleBtn.textContent = '使用默认Key模式：关闭';
+            }
             
             updateStatus();
+
+            const savedPlain = localStorage.getItem('aiChatUsePlainText');
+            if (savedPlain) {
+                usePlainText = savedPlain === 'true';
+            }
+            const plainBtn = document.getElementById('plainTextToggle');
+            if (usePlainText) {
+                plainBtn.classList.add('active');
+                plainBtn.textContent = '纯文本显示：开启';
+            } else {
+                plainBtn.classList.remove('active');
+                plainBtn.textContent = '纯文本显示：关闭';
+            }
+
+            const savedConcise = localStorage.getItem('aiChatUseConciseMode');
+            if (savedConcise) {
+                useConciseMode = savedConcise === 'true';
+            }
+            const conciseBtn = document.getElementById('conciseModeToggle');
+            if (useConciseMode) {
+                conciseBtn.classList.add('active');
+                conciseBtn.textContent = '简洁模式：开启';
+            } else {
+                conciseBtn.classList.remove('active');
+                conciseBtn.textContent = '简洁模式：关闭';
+            }
         }
 
         // 显示错误信息
@@ -592,25 +672,25 @@
             try {
                 switch(assistantId) {
                     case 'deepseek':
-                        if (!apiKeys.deepseek) {
+                        if (!getEffectiveKeys().deepseek) {
                             throw new Error('DeepSeek API密钥未配置');
                         }
                         // 调用DeepSeek API
-                        return await callDeepSeekAPI(messages, apiKeys.deepseek);
+                        return await callDeepSeekAPI(messages, getEffectiveKeys().deepseek);
                         
                     case 'tongyi':
-                        if (!apiKeys.tongyi) {
+                        if (!getEffectiveKeys().tongyi) {
                             throw new Error('通义千问API密钥未配置');
                         }
                         // 调用通义千问API
-                        return await callTongyiAPI(messages, apiKeys.tongyi);
+                        return await callTongyiAPI(messages, getEffectiveKeys().tongyi);
                         
                     case 'doubao':
-                        if (!apiKeys.doubao) {
+                        if (!getEffectiveKeys().doubao) {
                             throw new Error('豆包API密钥未配置');
                         }
                         // 调用豆包API
-                        return await calldoubaoAPI(messages, apiKeys.doubao);
+                        return await calldoubaoAPI(messages, getEffectiveKeys().doubao);
                         
                     default:
                         throw new Error('未知的AI助手');
@@ -625,16 +705,24 @@
         async function callDeepSeekAPI(messages, apiKey) {
             // 这里需要根据DeepSeek的实际API文档来实现
             // 示例：
-            const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+            const requestBody = {
+                model: 'deepseek-chat',
+                messages: messages
+            };
+            
+            // 简洁模式下限制回复长度
+            if (useConciseMode) {
+                requestBody.max_tokens = 100;
+                requestBody.temperature = 0.7;
+            }
+            
+            const response = await fetch(apiEndpoints.deepseek, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${apiKey}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    model: 'deepseek-chat',
-                    messages: messages
-                })
+                body: JSON.stringify(requestBody)
             });
             
             if (!response.ok) {
@@ -647,16 +735,24 @@
 
         async function callTongyiAPI(messages, apiKey) {
             // DashScope 兼容模式（OpenAI 风格）
-            const response = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
+            const requestBody = {
+                model: 'qwen-plus',
+                messages: messages
+            };
+            
+            // 简洁模式下限制回复长度
+            if (useConciseMode) {
+                requestBody.max_tokens = 100;
+                requestBody.temperature = 0.7;
+            }
+            
+            const response = await fetch(apiEndpoints.tongyi, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${apiKey}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    model: 'qwen-plus',
-                    messages: messages
-                })
+                body: JSON.stringify(requestBody)
             });
             
             if (!response.ok) {
@@ -680,18 +776,25 @@
                 try {
                     console.log(`尝试豆包模型: ${model}`);
                     
-                    const response = await fetch('https://ark.cn-beijing.volces.com/api/v3/chat/completions', {
+                    const requestBody = {
+                        model: model,
+                        messages: messages,
+                        max_tokens: 1000,
+                        temperature: 0.7
+                    };
+                    
+                    // 简洁模式下进一步限制回复长度
+                    if (useConciseMode) {
+                        requestBody.max_tokens = 100;
+                    }
+                    
+                    const response = await fetch(apiEndpoints.doubao, {
                         method: 'POST',
                         headers: {
                             'Authorization': `Bearer ${apiKey}`,
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({
-                            model: model,
-                            messages: messages,
-                            max_tokens: 1000,
-                            temperature: 0.7
-                        })
+                        body: JSON.stringify(requestBody)
                     });
                     
                     if (!response.ok) {
@@ -728,24 +831,46 @@
             messageDiv.className = `message ${sender}`;
             
             if (sender === 'user') {
-                messageDiv.innerHTML = `
-                    <div class="message-content">
-                        <p>${content}</p>
-                    </div>
-                    <div class="user-avatar">我</div>
-                `;
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'message-content';
+                if (usePlainText) {
+                    contentDiv.textContent = content;
+                } else {
+                    contentDiv.innerHTML = `<p>${content}</p>`;
+                }
+                const avatarDiv = document.createElement('div');
+                avatarDiv.className = 'user-avatar';
+                avatarDiv.textContent = '我';
+                messageDiv.appendChild(contentDiv);
+                messageDiv.appendChild(avatarDiv);
             } else {
                 const assistant = assistants.find(a => a.id === assistantId);
-                messageDiv.innerHTML = `
-                    <div class="message-avatar" style="background-color: ${assistant.color};">${assistant.avatar}</div>
-                    <div class="message-content">
-                        <div class="message-info">
-                            <span class="message-name">${assistant.name}</span>
-                            <span class="message-time">${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</span>
-                        </div>
-                        <p>${content}</p>
-                    </div>
-                `;
+                const avatar = document.createElement('div');
+                avatar.className = 'message-avatar';
+                avatar.style.backgroundColor = assistant.color;
+                avatar.textContent = assistant.avatar;
+                const contentWrap = document.createElement('div');
+                contentWrap.className = 'message-content';
+                const info = document.createElement('div');
+                info.className = 'message-info';
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'message-name';
+                nameSpan.textContent = assistant.name;
+                const timeSpan = document.createElement('span');
+                timeSpan.className = 'message-time';
+                timeSpan.textContent = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+                info.appendChild(nameSpan);
+                info.appendChild(timeSpan);
+                contentWrap.appendChild(info);
+                const p = document.createElement('p');
+                if (usePlainText) {
+                    p.textContent = content;
+                } else {
+                    p.innerHTML = content;
+                }
+                contentWrap.appendChild(p);
+                messageDiv.appendChild(avatar);
+                messageDiv.appendChild(contentWrap);
             }
             
             messagesContainer.appendChild(messageDiv);
@@ -823,6 +948,48 @@
         document.getElementById('deepseekApiKey').addEventListener('input', saveApiKeys);
         document.getElementById('tongyiApiKey').addEventListener('input', saveApiKeys);
         document.getElementById('doubaoApiKey').addEventListener('input', saveApiKeys);
+        // 监听默认Key模式切换
+        document.getElementById('defaultKeyToggle').addEventListener('click', function() {
+            useDefaultKeys = !useDefaultKeys;
+            localStorage.setItem('aiChatUseDefaultKeys', useDefaultKeys ? 'true' : 'false');
+            const toggleBtn = document.getElementById('defaultKeyToggle');
+            if (useDefaultKeys) {
+                toggleBtn.classList.add('active');
+                toggleBtn.textContent = '使用默认Key模式：开启';
+            } else {
+                toggleBtn.classList.remove('active');
+                toggleBtn.textContent = '使用默认Key模式：关闭';
+            }
+            updateStatus();
+        });
+
+        // 监听纯文本显示切换
+        document.getElementById('plainTextToggle').addEventListener('click', function() {
+            usePlainText = !usePlainText;
+            localStorage.setItem('aiChatUsePlainText', usePlainText ? 'true' : 'false');
+            const btn = document.getElementById('plainTextToggle');
+            if (usePlainText) {
+                btn.classList.add('active');
+                btn.textContent = '纯文本显示：开启';
+            } else {
+                btn.classList.remove('active');
+                btn.textContent = '纯文本显示：关闭';
+            }
+        });
+
+        // 监听简洁模式切换
+        document.getElementById('conciseModeToggle').addEventListener('click', function() {
+            useConciseMode = !useConciseMode;
+            localStorage.setItem('aiChatUseConciseMode', useConciseMode ? 'true' : 'false');
+            const btn = document.getElementById('conciseModeToggle');
+            if (useConciseMode) {
+                btn.classList.add('active');
+                btn.textContent = '简洁模式：开启';
+            } else {
+                btn.classList.remove('active');
+                btn.textContent = '简洁模式：关闭';
+            }
+        });
 
         // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', function() {
